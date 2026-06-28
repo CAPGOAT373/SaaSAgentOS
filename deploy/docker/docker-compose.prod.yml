@@ -1,0 +1,231 @@
+# ============================================================
+# Agent OS V6.0 - Production-Grade docker-compose
+# Production-like local deployment with resource limits
+# ============================================================
+version: "3.9"
+
+services:
+  # ─── API Gateway ──────────────────────────────────
+  api-gateway:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    container_name: agent-os-gateway
+    ports:
+      - "8000:8000"
+      - "9090:9090"
+    environment:
+      - AGENT_OS_REGION=${AGENT_OS_REGION:-us-east-1}
+      - DEPLOYMENT_MODE=${DEPLOYMENT_MODE:-production}
+      - DEBUG=${DEBUG:-false}
+      - PORT=8000
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${DB_USER:-agentos}
+      - DB_PASSWORD=${DB_PASSWORD:-agentos}
+      - DB_NAME=${DB_NAME:-agent_os}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - KAFKA_BOOTSTRAP_SERVERS=redpanda:9092
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
+      - LLM_API_KEY=${LLM_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - agent-os-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: "1G"
+        reservations:
+          cpus: "0.5"
+          memory: "256M"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ─── PostgreSQL ───────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: agent-os-postgres
+    environment:
+      - POSTGRES_USER=${DB_USER:-agentos}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-agentos}
+      - POSTGRES_DB=${DB_NAME:-agent_os}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-agentos} -d ${DB_NAME:-agent_os}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - agent-os-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: "512M"
+        reservations:
+          cpus: "0.25"
+          memory: "128M"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ─── Redis ────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: agent-os-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - agent-os-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "256M"
+        reservations:
+          cpus: "0.1"
+          memory: "64M"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ─── Redpanda (Kafka Compatible) ──────────────────
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.2.8
+    container_name: agent-os-redpanda
+    command:
+      - redpanda start
+      - --smp 1
+      - --overprovisioned
+      - --kafka-addr internal://0.0.0.0:9092
+      - --advertise-kafka-addr internal://redpanda:9092
+    ports:
+      - "9092:9092"
+      - "9644:9644"
+    networks:
+      - agent-os-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: "1G"
+        reservations:
+          cpus: "0.25"
+          memory: "256M"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ─── Jaeger (Tracing) ─────────────────────────────
+  jaeger:
+    image: jaegertracing/all-in-one:1.62
+    container_name: agent-os-jaeger
+    ports:
+      - "16686:16686"
+      - "14268:14268"
+      - "14250:14250"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - agent-os-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "256M"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ─── Prometheus (Metrics) ─────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: agent-os-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.console.libraries=/usr/share/prometheus/console_libraries
+      - --web.console.templates=/usr/share/prometheus/consoles
+    networks:
+      - agent-os-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "512M"
+
+  # ─── Grafana (Dashboards) ─────────────────────────
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: agent-os-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - agent-os-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "256M"
+
+networks:
+  agent-os-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:

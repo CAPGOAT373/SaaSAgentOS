@@ -1,0 +1,20 @@
+apiVersion: v2
+name: agent-os
+description: Agent OS V6.0 - Capital Grade AI Agent Economy Platform Helm Chart
+type: application
+version: 0.1.0
+appVersion: "6.0.0"
+keywords:
+  - agent
+  - ai
+  - llm
+  - saas
+  - workflow
+  - multi-tenant
+maintainers:
+  - name: Agent OS Team
+    email: team@agent-os.io
+home: https://agent-os.io
+sources:
+  - https://github.com/agent-os/agent-os
+icon: https://agent-os.io/icon.png

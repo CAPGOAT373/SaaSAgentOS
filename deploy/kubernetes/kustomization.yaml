@@ -1,0 +1,25 @@
+# ============================================================
+# Agent OS V6.0 - Kustomization (for kubectl apply -k)
+# ============================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: agent-os
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secret.yaml
+  - serviceaccount.yaml
+  - deployment.yaml
+  - service.yaml
+  - hpa.yaml
+  - pdb.yaml
+
+commonLabels:
+  app.kubernetes.io/part-of: agent-os-platform
+  app.kubernetes.io/managed-by: kustomize
+
+images:
+  - name: agent-os
+    newTag: "6.0.0"

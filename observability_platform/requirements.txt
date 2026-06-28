@@ -1,0 +1,14 @@
+# AI Agent Observability Platform - Requirements
+fastapi>=0.110.0
+uvicorn>=0.27.0
+pydantic>=2.6.0
+# OpenTelemetry (optional - platform degrades gracefully without these)
+opentelemetry-api>=1.24.0
+opentelemetry-sdk>=1.24.0
+opentelemetry-exporter-jaeger-thrift>=1.21.0
+# PostgreSQL (optional - falls back to in-memory)
+asyncpg>=0.29.0
+# Redis (optional)
+redis>=5.0.0
+# Kafka (optional - simulated)
+aiokafka>=0.10.0

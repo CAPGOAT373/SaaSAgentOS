@@ -1,0 +1,26 @@
+{
+  "name": "agent-os-frontend-next",
+  "private": true,
+  "version": "6.0.0",
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "generate:api": "openapi-typescript ../OpenAPI.JSON -o src/api/schema.ts"
+  },
+  "dependencies": {
+    "lucide-react": "^0.441.0",
+    "next": "^14.2.15",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zustand": "^4.5.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.0",
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "openapi-typescript": "^7.4.1",
+    "typescript": "^5.5.4"
+  }
+}

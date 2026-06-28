@@ -1,0 +1,116 @@
+version: "3.9"
+
+services:
+  # ─── API Gateway ──────────────────────────────────
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: agent-os-gateway
+    ports:
+      - "8000:8000"
+      - "9090:9090"
+    environment:
+      - AGENT_OS_REGION=us-east-1
+      - DEPLOYMENT_MODE=dev
+      - DEBUG=true
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=agentos
+      - DB_PASSWORD=agentos
+      - DB_NAME=agent_os
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - KAFKA_BOOTSTRAP_SERVERS=redpanda:9092
+      - JWT_SECRET=agent-os-dev-secret-key-change-in-production
+      - LLM_API_KEY=${LLM_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./agent_os:/app/agent_os
+    networks:
+      - agent-os-network
+    restart: unless-stopped
+
+  # ─── PostgreSQL ───────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: agent-os-postgres
+    environment:
+      - POSTGRES_USER=agentos
+      - POSTGRES_PASSWORD=agentos
+      - POSTGRES_DB=agent_os
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentos -d agent_os"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - agent-os-network
+    restart: unless-stopped
+
+  # ─── Redis ────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: agent-os-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - agent-os-network
+    restart: unless-stopped
+
+  # ─── Redpanda (Kafka Compatible) ──────────────────
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.2.8
+    container_name: agent-os-redpanda
+    command:
+      - redpanda start
+      - --smp 1
+      - --overprovisioned
+      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr internal://redpanda:9092,external://localhost:19092
+      - --pandaproxy-addr internal://0.0.0.0:8082,external://0.0.0.0:18082
+    ports:
+      - "19092:19092"
+      - "18082:18082"
+      - "19644:9644"
+    networks:
+      - agent-os-network
+    restart: unless-stopped
+
+  # ─── Jaeger (Tracing) ─────────────────────────────
+  jaeger:
+    image: jaegertracing/all-in-one:1.62
+    container_name: agent-os-jaeger
+    ports:
+      - "16686:16686"
+      - "14268:14268"
+      - "14250:14250"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - agent-os-network
+    restart: unless-stopped
+
+networks:
+  agent-os-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:

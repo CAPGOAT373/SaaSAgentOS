@@ -1,0 +1,116 @@
+============================================================
+AI Agent Observability Platform - Verification
+============================================================
+
+Starting server on port 9200...
+Server started!
+
+[1] Health Check
+  [PASS] Health endpoint
+  [PASS] Service name
+
+[2] Generate Demo Traces
+  [PASS] All demos generated
+  [PASS] Agent trace
+  [PASS] RAG trace
+  [PASS] Tool trace
+  [PASS] Security trace
+
+[3] Full Agent Execution Chain (clickable)
+  [PASS] Trace retrieved
+  [PASS] Has spans
+  [PASS] Has prompt span
+  [PASS] Has rag span
+  [PASS] Has tool span
+  [PASS] Has llm span
+  [PASS] Has agent span
+  [PASS] Timeline
+  [PASS] Timeline offsets
+  [PASS] Timeline depth
+  [PASS] DAG nodes
+  [PASS] DAG edges
+  [PASS] Steps
+  [PASS] Steps I/O
+
+[4] Metrics Engine (Layer 1)
+  [PASS] Overview
+  [PASS] Tokens
+  [PASS] Cost
+  [PASS] Latency
+  [PASS] By model
+  [PASS] By span type
+  [PASS] Errors
+  [PASS] Tools
+  [PASS] Heatmap
+
+[5] Log System (Layer 2)
+  [PASS] Logs
+  [PASS] Structured
+  [PASS] Payload
+
+[6] Trace System (Layer 3)
+  [PASS] List traces
+  [PASS] Has tenant_id
+  [PASS] Has risk_score
+
+[7] Cost Analysis
+  [PASS] Tenant cost
+  [PASS] By component
+  [PASS] By agent
+  [PASS] Request breakdown
+  [PASS] Breakdown items
+  [PASS] Trend
+
+[8] Replay (Exact + Debug)
+  [PASS] Exact replay
+  [PASS] Exact match
+  [PASS] Debug replay
+  [PASS] Debug subs
+  [PASS] Debug steps
+  [PASS] Debug diffs
+  [PASS] Prompt diff
+
+[9] AI Security (risk detection)
+  [PASS] Risk score
+  [PASS] Alert level
+  [PASS] Risks
+  [PASS] Auto block
+  [PASS] Injection detected
+  [PASS] Auto block critical
+  [PASS] Alerts
+
+[10] OpenTelemetry
+  [PASS] OTel traces
+  [PASS] OTel resource
+  [PASS] OTel attributes
+  [PASS] Jaeger export
+  [PASS] Export spans
+
+[11] Observability Details
+  [PASS] LLM calls
+  [PASS] LLM model
+  [PASS] LLM tokens
+  [PASS] Tool calls
+  [PASS] RAG queries
+  [PASS] RAG docs
+  [PASS] Prompt versions
+  [PASS] Prompt version
+
+[12] Storage Health
+  [PASS] Healthy
+  [PASS] Traces stored
+  [PASS] LLM stored
+  [PASS] Tool stored
+  [PASS] Cost stored
+
+============================================================
+RESULTS: 74 passed, 0 failed
+============================================================
+
+ALL SUCCESS CRITERIA MET:
+  - Full Agent execution chain: VISIBLE & CLICKABLE
+  - Each step: clickable (timeline/DAG/steps)
+  - Replay: exact + debug modes working
+  - Debug: prompt/model substitution with diff
+  - Cost analysis: tenant/agent/request breakdown
+  - Risk detection: prompt injection + auto-block

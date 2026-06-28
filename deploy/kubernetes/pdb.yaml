@@ -1,0 +1,18 @@
+# ============================================================
+# Agent OS V6.0 - PodDisruptionBudget
+# Ensure minimum availability during voluntary disruptions
+# ============================================================
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: api-gateway-pdb
+  namespace: agent-os
+  labels:
+    app.kubernetes.io/name: agent-os
+    app.kubernetes.io/component: api-gateway
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: agent-os
+      component: api-gateway

@@ -1,0 +1,21 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.14.6, pytest-9.1.1, pluggy-1.6.0
+rootdir: D:\Users\capgo\Desktop\SaaSAgentOS
+configfile: pytest.ini
+plugins: anyio-4.14.0, asyncio-1.4.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 123 items
+
+tests\test_workflow_service.py ..........F...............                [ 21%]
+tests\test_agent_service.py .......................                      [ 39%]
+tests\test_auth_service.py .................                             [ 53%]
+tests\test_billing_service.py ................                           [ 66%]
+tests\test_marketplace_service.py .....................                  [ 83%]
+tests\test_usage_service.py ....................                         [100%]
+
+================================== FAILURES ===================================
+E   Failed: DID NOT RAISE ValidationException
+D:\Users\capgo\Desktop\SaaSAgentOS\tests\test_workflow_service.py:212: Failed: DID NOT RAISE ValidationException
+=========================== short test summary info ===========================
+FAILED tests/test_workflow_service.py::TestWorkflowService::test_execute_workflow_not_active
+======================= 1 failed, 122 passed in 20.64s ========================

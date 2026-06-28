@@ -1,0 +1,102 @@
+# ============================================================
+# AI Agent Observability Platform - Docker Compose
+# Services: observability-platform, postgres, redis, jaeger
+# ============================================================
+version: "3.9"
+
+services:
+  # ── Observability Platform (FastAPI) ─────────────────
+  observability-platform:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-observability
+    ports:
+      - "9100:9100"
+    environment:
+      - OBS_HOST=0.0.0.0
+      - OBS_PORT=9100
+      - DATABASE_URL=postgresql://obs:obs_pass@postgres:5432/observability
+      - REDIS_URL=redis://redis:6379/0
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - JAEGER_ENDPOINT=http://jaeger:14268/api/traces
+      - OTEL_ENABLED=true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - obs-net
+
+  # ── PostgreSQL (event storage) ───────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: obs-postgres
+    environment:
+      POSTGRES_USER: obs
+      POSTGRES_PASSWORD: obs_pass
+      POSTGRES_DB: observability
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U obs -d observability"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - obs-net
+
+  # ── Redis (cache) ────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: obs-redis
+    ports:
+      - "6380:6379"
+    restart: unless-stopped
+    networks:
+      - obs-net
+
+  # ── Jaeger (OpenTelemetry export target) ─────────────
+  jaeger:
+    image: jaegertracing/all-in-one:1.55
+    container_name: obs-jaeger
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686"   # Jaeger UI
+      - "14268:14268"   # HTTP collector
+      - "4318:4318"     # OTLP HTTP
+    restart: unless-stopped
+    networks:
+      - obs-net
+
+  # ── Kafka (event stream simulation) ──────────────────
+  kafka:
+    image: bitnami/kafka:3.7
+    container_name: obs-kafka
+    environment:
+      KAFKA_CFG_NODE_ID: 1
+      KAFKA_CFG_PROCESS_ROLES: controller,broker
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    ports:
+      - "9093:9092"
+    restart: unless-stopped
+    networks:
+      - obs-net
+
+volumes:
+  pgdata:
+
+networks:
+  obs-net:
+    driver: bridge

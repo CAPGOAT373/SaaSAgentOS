@@ -1,0 +1,21 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.14.6, pytest-9.1.1, pluggy-1.6.0
+rootdir: D:\Users\capgo\Desktop\SaaSAgentOS
+configfile: pytest.ini
+plugins: anyio-4.14.0, asyncio-1.4.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 302 items
+
+tests\test_agent_service.py .......................                      [  7%]
+tests\test_auth_service.py .................                             [ 13%]
+tests\test_billing_service.py ................                           [ 18%]
+tests\test_marketplace_service.py .....................                  [ 25%]
+tests\test_prompt_service.py ........................................... [ 39%]
+........................................................................ [ 63%]
+......                                                                   [ 65%]
+tests\test_rag_service.py .............................................. [ 80%]
+............                                                             [ 84%]
+tests\test_usage_service.py ....................                         [ 91%]
+tests\test_workflow_service.py ..........................                [100%]
+
+============================= 302 passed in 7.03s =============================

@@ -1,0 +1,22 @@
+# ============================================================
+# Agent OS V6.0 - Istio Sidecar
+# Limit egress traffic scope for security
+# ============================================================
+apiVersion: networking.istio.io/v1beta1
+kind: Sidecar
+metadata:
+  name: agent-os-sidecar
+  namespace: agent-os
+  labels:
+    app.kubernetes.io/name: agent-os
+spec:
+  workloadSelector:
+    labels:
+      app: agent-os
+  egress:
+    - hosts:
+        - "./*"
+        - "istio-system/*"
+        - "kube-system/*"
+  outboundTrafficPolicy:
+    mode: REGISTRY_ONLY

@@ -1,0 +1,235 @@
+# ============================================================
+# Agent OS V6.0 - CD Pipeline (Continuous Deployment)
+# Triggers: push to main (after CI passes), manual dispatch
+# ============================================================
+name: CD - Deploy to Kubernetes
+
+on:
+  workflow_run:
+    workflows: ["CI - Build & Test"]
+    branches: [main]
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Deployment environment"
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+        default: "staging"
+      image_tag:
+        description: "Docker image tag to deploy"
+        required: true
+        type: string
+        default: "latest"
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ── Deploy to Staging ──────────────────────────────
+  deploy-staging:
+    name: Deploy to Staging
+    if: |
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+    runs-on: ubuntu-latest
+    environment: staging
+    concurrency: staging
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "v3.15.0"
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: "v1.30.0"
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBE_CONFIG_STAGING }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Set image tag
+        id: vars
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "TAG=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "TAG=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Helm lint
+        run: |
+          helm lint deploy/helm/agent-os/
+
+      - name: Helm template (dry-run)
+        run: |
+          helm template agent-os deploy/helm/agent-os/ \
+            --namespace agent-os \
+            --set image.tag=${{ steps.vars.outputs.TAG }} \
+            --set image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
+            --values deploy/helm/agent-os/values.yaml \
+            --debug
+
+      - name: Deploy to Staging
+        run: |
+          helm upgrade --install agent-os deploy/helm/agent-os/ \
+            --namespace agent-os \
+            --create-namespace \
+            --set image.tag=${{ steps.vars.outputs.TAG }} \
+            --set image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
+            --values deploy/helm/agent-os/values.yaml \
+            --wait \
+            --timeout 10m
+
+      - name: Verify deployment
+        run: |
+          kubectl rollout status deployment/agent-os -n agent-os --timeout=5m
+          kubectl get pods -n agent-os -l "app.kubernetes.io/instance=agent-os"
+          kubectl get hpa -n agent-os
+
+      - name: Run smoke tests
+        run: |
+          # Port-forward and test health endpoint
+          kubectl port-forward -n agent-os svc/agent-os-service 8000:8000 &
+          sleep 5
+          curl -f http://localhost:8000/health || exit 1
+          curl -f http://localhost:8000/docs || true
+          kill %1
+
+      - name: Notify on failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "text": "❌ Agent OS Staging deployment failed!\nCommit: ${{ github.sha }}\nWorkflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+  # ── Deploy to Production ───────────────────────────
+  deploy-production:
+    name: Deploy to Production
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production'
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "v3.15.0"
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: "v1.30.0"
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBE_CONFIG_PRODUCTION }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Set image tag
+        run: |
+          echo "TAG=${{ github.event.inputs.image_tag }}" >> $GITHUB_ENV
+
+      - name: Helm lint
+        run: |
+          helm lint deploy/helm/agent-os/
+
+      - name: Helm diff (dry-run)
+        run: |
+          helm diff upgrade agent-os deploy/helm/agent-os/ \
+            --namespace agent-os \
+            --set image.tag=${{ env.TAG }} \
+            --set image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
+            --values deploy/helm/agent-os/values-prod.yaml \
+            --detailed-exitcode || true
+
+      - name: Deploy to Production (Canary)
+        run: |
+          # Step 1: Deploy canary subset (10% traffic)
+          helm upgrade --install agent-os-canary deploy/helm/agent-os/ \
+            --namespace agent-os \
+            --set image.tag=${{ env.TAG }} \
+            --set image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
+            --set replicaCount=1 \
+            --values deploy/helm/agent-os/values-prod.yaml \
+            --wait \
+            --timeout 5m
+
+      - name: Canary health check
+        run: |
+          kubectl wait --for=condition=ready pod \
+            -l "app.kubernetes.io/instance=agent-os-canary" \
+            -n agent-os --timeout=5m
+          # Run canary-specific tests here
+          sleep 30
+
+      - name: Deploy to Production (Full)
+        run: |
+          # Step 2: Promote canary to full deployment
+          helm upgrade --install agent-os deploy/helm/agent-os/ \
+            --namespace agent-os \
+            --set image.tag=${{ env.TAG }} \
+            --set image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
+            --values deploy/helm/agent-os/values-prod.yaml \
+            --wait \
+            --timeout 10m
+
+      - name: Verify deployment
+        run: |
+          kubectl rollout status deployment/agent-os -n agent-os --timeout=10m
+          kubectl get pods -n agent-os -l "app.kubernetes.io/instance=agent-os"
+          kubectl get hpa -n agent-os
+          kubectl top pods -n agent-os
+
+      - name: Cleanup canary
+        if: always()
+        run: |
+          helm uninstall agent-os-canary -n agent-os || true
+
+      - name: Notify success
+        if: success()
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "text": "✅ Agent OS Production deployment successful!\nVersion: ${{ env.TAG }}\nWorkflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+      - name: Notify on failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "text": "🚨 Agent OS Production deployment FAILED! Rolling back...\nCommit: ${{ github.sha }}\nWorkflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          helm rollback agent-os -n agent-os
+          kubectl rollout status deployment/agent-os -n agent-os --timeout=5m

@@ -1,0 +1,12 @@
+# ============================================================
+# Agent OS V6.0 - Kubernetes Namespace
+# ============================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: agent-os
+  labels:
+    app.kubernetes.io/name: agent-os
+    app.kubernetes.io/version: "6.0.0"
+    app.kubernetes.io/part-of: agent-os-platform
+    istio-injection: enabled

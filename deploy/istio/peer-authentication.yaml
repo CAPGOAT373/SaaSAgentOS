@@ -1,0 +1,51 @@
+# ============================================================
+# Agent OS V6.0 - Istio PeerAuthentication (mTLS)
+# Strict mTLS for all agent-os namespace services
+# ============================================================
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: agent-os-mtls
+  namespace: agent-os
+  labels:
+    app.kubernetes.io/name: agent-os
+spec:
+  mtls:
+    mode: STRICT
+---
+# ============================================================
+# Agent OS V6.0 - Istio AuthorizationPolicy
+# Allow only authenticated traffic within mesh
+# ============================================================
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: agent-os-authz
+  namespace: agent-os
+  labels:
+    app.kubernetes.io/name: agent-os
+spec:
+  action: ALLOW
+  rules:
+    # Allow health checks and metrics from anywhere
+    - to:
+        - operation:
+            paths:
+              - /health
+              - /metrics
+    # Allow API access from ingress gateway
+    - from:
+        - source:
+            principals:
+              - "cluster.local/ns/istio-system/sa/istio-ingressgateway-service-account"
+      to:
+        - operation:
+            paths:
+              - /api/*
+              - /docs*
+    # Allow mesh-internal communication
+    - from:
+        - source:
+            namespaces:
+              - agent-os
+              - istio-system

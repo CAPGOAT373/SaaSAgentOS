@@ -1,0 +1,109 @@
+============================================================
+AI Agent Observability Platform - Verification
+============================================================
+
+Starting server...
+Server started on port 9100
+
+[1] Health Check
+  [PASS] Health endpoint
+  [PASS] Service name
+
+[2] Generate Demo Traces
+  [PASS] All demos generated
+  [PASS] Agent trace created
+  [PASS] RAG trace created
+  [PASS] Tool trace created
+  [PASS] Security trace created
+
+[3] Full Agent Execution Chain (clickable, each step)
+  [PASS] Trace retrieved
+  [PASS] Trace has spans
+  [PASS] Has prompt span
+  [PASS] Has rag span
+  [PASS] Has tool span
+  [PASS] Has llm span
+  [PASS] Has agent span
+  [PASS] Timeline generated
+  [PASS] Timeline has offsets
+  [PASS] Timeline has depth
+  [PASS] Graph has nodes
+  [PASS] Graph has edges
+  [PASS] Steps generated
+  [PASS] Steps have input/output
+
+[4] Metrics Engine (Layer 1)
+  [PASS] Metrics overview
+  [PASS] Token stats
+  [PASS] Cost tracking
+  [PASS] Latency stats
+  [PASS] Token by model
+  [PASS] Latency p50
+  [PASS] Latency by span type
+  [PASS] Error stats
+  [PASS] Tool stats
+  [PASS] Heatmap generated
+
+[5] Log System (Layer 2)
+  [PASS] Logs retrieved
+  [PASS] Logs structured
+  [PASS] Logs have payload
+
+[6] Trace System (Layer 3)
+  [PASS] List traces
+  [PASS] Trace has tenant_id
+  [PASS] Trace has risk_score
+
+[7] Cost Analysis
+  [PASS] Tenant cost
+  [PASS] Cost by component
+  [PASS] Cost by agent
+  [PASS] Per-request breakdown
+  [PASS] Breakdown has items
+  [PASS] Cost trend
+
+[8] Replay Capability (Exact + Debug)
+  [PASS] Exact replay
+  [PASS] Exact replay match
+  [PASS] Debug replay
+  [PASS] Debug has substitutions
+  [PASS] Debug has steps
+  [PASS] Debug has diffs
+  [PASS] Debug has prompt diff
+
+[9] AI Security Observation (risk detection)
+  [PASS] Risk score computed
+  [PASS] Alert level set
+  [PASS] Risks detected
+  [PASS] Auto block decision
+  [PASS] Prompt injection detected
+  [FAIL] Auto block on critical 
+  [PASS] Alerts listed
+
+[10] OpenTelemetry Integration
+  [PASS] OTel traces
+  [PASS] OTel format has resource
+  [PASS] OTel spans have attributes
+  [PASS] Jaeger export
+  [PASS] Export has span count
+
+[11] Observability Details
+  [PASS] LLM calls listed
+  [PASS] LLM call has model
+  [PASS] LLM call has tokens
+  [PASS] Tool calls listed
+  [PASS] RAG queries listed
+  [PASS] RAG has retrieved_docs
+  [PASS] Prompt versions listed
+  [PASS] Prompt has version
+
+[12] Storage Health
+  [PASS] Storage healthy
+  [PASS] Traces stored
+  [PASS] LLM calls stored
+  [PASS] Tool calls stored
+  [PASS] Cost records stored
+
+============================================================
+RESULTS: 74 passed, 1 failed
+============================================================

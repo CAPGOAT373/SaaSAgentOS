@@ -1,0 +1,240 @@
+# ============================================================
+# Agent OS V6.0 - Helm Values (default)
+# ============================================================
+
+# ── Global Settings ──────────────────────────────────
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+  storageClass: ""
+
+# ── Image Configuration ─────────────────────────────
+image:
+  repository: agent-os
+  tag: "6.0.0"
+  pullPolicy: IfNotPresent
+
+# ── Deployment Configuration ────────────────────────
+replicaCount: 3
+
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 2
+    maxUnavailable: 0
+
+# ── Application Configuration ───────────────────────
+config:
+  region: "us-east-1"
+  deploymentMode: "production"
+  debug: false
+  port: 8000
+  workers: 4
+  logLevel: "INFO"
+
+  # Database
+  database:
+    host: "postgres-service.agent-os.svc.cluster.local"
+    port: 5432
+    user: "agentos"
+    name: "agent_os"
+    poolSize: 20
+    maxOverflow: 10
+
+  # Redis
+  redis:
+    host: "redis-service.agent-os.svc.cluster.local"
+    port: 6379
+    db: 0
+
+  # Kafka
+  kafka:
+    bootstrapServers: "redpanda-service.agent-os.svc.cluster.local:9092"
+
+  # MCP
+  mcp:
+    host: "0.0.0.0"
+    port: 9100
+
+  # gRPC
+  grpc:
+    port: 50051
+
+  # Observability
+  otel:
+    endpoint: "http://jaeger-collector.istio-system:4317"
+
+# ── Secrets (use external secrets operator in production) ──
+secrets:
+  dbPassword: "change-me-in-production"
+  redisPassword: ""
+  jwtSecret: "change-me-in-production-use-256-bit-key"
+  llmApiKey: ""
+
+# ── Service Configuration ───────────────────────────
+service:
+  type: ClusterIP
+  httpPort: 8000
+  metricsPort: 9090
+  grpcPort: 50051
+
+# ── Resource Limits ─────────────────────────────────
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "250m"
+  limits:
+    memory: "1Gi"
+    cpu: "1000m"
+
+# ── Health Probes ───────────────────────────────────
+livenessProbe:
+  path: /health
+  initialDelaySeconds: 15
+  periodSeconds: 20
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  path: /health
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+startupProbe:
+  path: /health
+  initialDelaySeconds: 0
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 30
+
+# ── Horizontal Pod Autoscaler ───────────────────────
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+  # Scale behavior
+  scaleUp:
+    stabilizationWindowSeconds: 60
+    policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 60
+      - type: Pods
+        value: 4
+        periodSeconds: 60
+    selectPolicy: Max
+
+  scaleDown:
+    stabilizationWindowSeconds: 300
+    policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+      - type: Pods
+        value: 2
+        periodSeconds: 60
+    selectPolicy: Min
+
+# ── Pod Disruption Budget ───────────────────────────
+pdb:
+  enabled: true
+  minAvailable: 2
+
+# ── Service Account ─────────────────────────────────
+serviceAccount:
+  create: true
+  name: "agent-os-sa"
+
+# ── Pod Security Context ────────────────────────────
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+  seccompProfile:
+    type: RuntimeDefault
+
+# ── Affinity & Anti-Affinity ────────────────────────
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: component
+                operator: In
+                values: ["api-gateway"]
+          topologyKey: kubernetes.io/hostname
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        component: api-gateway
+
+# ── Istio Integration ───────────────────────────────
+istio:
+  enabled: true
+  sidecar:
+    inject: true
+    proxyCPU: "100m"
+    proxyMemory: "128Mi"
+    proxyCPULimit: "500m"
+    proxyMemoryLimit: "256Mi"
+  gateway:
+    enabled: true
+    hosts:
+      - "api.agent-os.local"
+    tls:
+      enabled: true
+      credentialName: "agent-os-tls-cert"
+  virtualService:
+    enabled: true
+    retries:
+      attempts: 3
+      perTryTimeout: 5s
+    timeout: 30s
+  destinationRule:
+    enabled: true
+    circuitBreaker:
+      consecutive5xxErrors: 5
+      consecutiveGatewayErrors: 3
+      interval: 30s
+      baseEjectionTime: 60s
+      maxEjectionPercent: 50
+  mTLS:
+    enabled: true
+    mode: STRICT
+
+# ── Prometheus Metrics ──────────────────────────────
+prometheus:
+  scrape: true
+  port: 9090
+  path: "/metrics"
+
+# ── Node Selector ───────────────────────────────────
+nodeSelector: {}
+
+# ── Tolerations ─────────────────────────────────────
+tolerations: []
+
+# ── Pod Annotations ─────────────────────────────────
+podAnnotations: {}
+
+# ── Extra Environment Variables ─────────────────────
+extraEnv: []
+# - name: CUSTOM_VAR
+#   value: "custom-value"

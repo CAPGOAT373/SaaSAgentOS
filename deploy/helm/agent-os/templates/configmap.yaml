@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "agent-os.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "agent-os.labels" . | nindent 4 }}
+data:
+  AGENT_OS_REGION: {{ .Values.config.region | quote }}
+  DEPLOYMENT_MODE: {{ .Values.config.deploymentMode | quote }}
+  DEBUG: {{ .Values.config.debug | quote }}
+  PORT: {{ .Values.config.port | quote }}
+  WORKERS: {{ .Values.config.workers | quote }}
+  DB_HOST: {{ .Values.config.database.host | quote }}
+  DB_PORT: {{ .Values.config.database.port | quote }}
+  DB_USER: {{ .Values.config.database.user | quote }}
+  DB_NAME: {{ .Values.config.database.name | quote }}
+  DB_POOL_SIZE: {{ .Values.config.database.poolSize | quote }}
+  DB_MAX_OVERFLOW: {{ .Values.config.database.maxOverflow | quote }}
+  REDIS_HOST: {{ .Values.config.redis.host | quote }}
+  REDIS_PORT: {{ .Values.config.redis.port | quote }}
+  REDIS_DB: {{ .Values.config.redis.db | quote }}
+  KAFKA_BOOTSTRAP_SERVERS: {{ .Values.config.kafka.bootstrapServers | quote }}
+  LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  MCP_HOST: {{ .Values.config.mcp.host | quote }}
+  MCP_PORT: {{ .Values.config.mcp.port | quote }}
+  GRPC_PORT: {{ .Values.config.grpc.port | quote }}
+  {{- if .Values.config.otel.endpoint }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.config.otel.endpoint | quote }}
+  {{- end }}

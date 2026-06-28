@@ -1,0 +1,38 @@
+# ============================================================
+# Agent OS V6.0 - ConfigMap
+# ============================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agent-os-config
+  namespace: agent-os
+  labels:
+    app.kubernetes.io/name: agent-os
+    app.kubernetes.io/version: "6.0.0"
+data:
+  AGENT_OS_REGION: "us-east-1"
+  DEPLOYMENT_MODE: "production"
+  DEBUG: "false"
+  PORT: "8000"
+  WORKERS: "4"
+  # Database
+  DB_HOST: "postgres-service.agent-os.svc.cluster.local"
+  DB_PORT: "5432"
+  DB_USER: "agentos"
+  DB_NAME: "agent_os"
+  DB_POOL_SIZE: "20"
+  DB_MAX_OVERFLOW: "10"
+  # Redis
+  REDIS_HOST: "redis-service.agent-os.svc.cluster.local"
+  REDIS_PORT: "6379"
+  REDIS_DB: "0"
+  # Kafka
+  KAFKA_BOOTSTRAP_SERVERS: "redpanda-service.agent-os.svc.cluster.local:9092"
+  # Observability
+  LOG_LEVEL: "INFO"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger-collector.istio-system:4317"
+  # MCP
+  MCP_HOST: "0.0.0.0"
+  MCP_PORT: "9100"
+  # gRPC
+  GRPC_PORT: "50051"

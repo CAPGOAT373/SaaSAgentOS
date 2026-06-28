@@ -1,0 +1,47 @@
+# ============================================================
+# Agent OS V6.0 - Helm Values (Production Override)
+# ============================================================
+
+# Override for production environment
+replicaCount: 5
+
+config:
+  debug: false
+  logLevel: "WARNING"
+
+resources:
+  requests:
+    memory: "512Mi"
+    cpu: "500m"
+  limits:
+    memory: "2Gi"
+    cpu: "2000m"
+
+autoscaling:
+  minReplicas: 5
+  maxReplicas: 50
+
+pdb:
+  minAvailable: 3
+
+podAnnotations:
+  cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+
+istio:
+  sidecar:
+    proxyCPU: "200m"
+    proxyMemory: "256Mi"
+    proxyCPULimit: "1000m"
+    proxyMemoryLimit: "512Mi"
+  destinationRule:
+    circuitBreaker:
+      consecutive5xxErrors: 3
+      baseEjectionTime: 120s
+  mTLS:
+    mode: STRICT
+
+tolerations:
+  - key: "node.kubernetes.io/not-ready"
+    operator: "Exists"
+    effect: "NoExecute"
+    tolerationSeconds: 300

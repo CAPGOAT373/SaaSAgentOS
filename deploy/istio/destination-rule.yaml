@@ -1,0 +1,75 @@
+# ============================================================
+# Agent OS V6.0 - Istio DestinationRule
+# Load balancing, circuit breaker, connection pool, outlier detection
+# ============================================================
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: api-gateway-dr
+  namespace: agent-os
+  labels:
+    app.kubernetes.io/name: agent-os
+    app.kubernetes.io/component: api-gateway
+spec:
+  host: api-gateway-service.agent-os.svc.cluster.local
+  trafficPolicy:
+    # ── Load Balancing ───────────────────────────────
+    loadBalancer:
+      simple: LEAST_REQUEST
+      localityLbSetting:
+        enabled: true
+        distribute:
+          - from: us-east-1/*
+            to:
+              us-east-1/*: 80
+              us-west-1/*: 20
+        failover:
+          - from: us-east-1
+            to: us-west-1
+
+    # ── Connection Pool ──────────────────────────────
+    connectionPool:
+      tcp:
+        maxConnections: 1000
+        connectTimeout: 3s
+        tcpKeepalive:
+          time: 7200s
+          interval: 75s
+          probes: 9
+      http:
+        http1MaxPendingRequests: 100
+        http2MaxRequests: 1000
+        maxRequestsPerConnection: 100
+        maxRetries: 3
+        idleTimeout: 300s
+        h2UpgradePolicy: UPGRADE
+
+    # ── Circuit Breaker (Outlier Detection) ──────────
+    outlierDetection:
+      consecutive5xxErrors: 5
+      consecutiveGatewayErrors: 3
+      interval: 30s
+      baseEjectionTime: 60s
+      maxEjectionPercent: 50
+      minHealthPercent: 25
+      splitExternalLocalOriginErrors: true
+
+    # ── TLS (mTLS) ───────────────────────────────────
+    tls:
+      mode: ISTIO_MUTUAL
+      sni: api-gateway-service.agent-os.svc.cluster.local
+
+  # ── Subsets for Canary Deployments ─────────────────
+  subsets:
+    - name: stable
+      labels:
+        version: stable
+      trafficPolicy:
+        loadBalancer:
+          simple: LEAST_REQUEST
+    - name: canary
+      labels:
+        version: canary
+      trafficPolicy:
+        loadBalancer:
+          simple: RANDOM

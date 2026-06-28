@@ -1,0 +1,110 @@
+# ============================================================
+# Agent OS V6.0 - Istio VirtualService
+# Traffic routing, canary, retry, timeout, fault injection
+# ============================================================
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: api-gateway-vs
+  namespace: agent-os
+  labels:
+    app.kubernetes.io/name: agent-os
+    app.kubernetes.io/component: api-gateway
+spec:
+  hosts:
+    - "api.agent-os.local"
+    - api-gateway-service.agent-os.svc.cluster.local
+  gateways:
+    - agent-os-gateway
+    - mesh
+  http:
+    # ── Main API Routes ──────────────────────────────
+    - match:
+        - uri:
+            prefix: /api/v1/
+      route:
+        - destination:
+            host: api-gateway-service.agent-os.svc.cluster.local
+            port:
+              number: 8000
+          weight: 100
+      retries:
+        attempts: 3
+        perTryTimeout: 5s
+        retryOn: "connect-failure,refused-stream,unavailable,cancelled,resource-exhausted,retriable-status-codes"
+      timeout: 30s
+      corsPolicy:
+        allowOrigins:
+          - exact: "*"
+        allowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        allowHeaders:
+          - Authorization
+          - Content-Type
+          - X-Tenant-ID
+        exposeHeaders:
+          - X-Request-ID
+          - X-Trace-ID
+        maxAge: 24h
+
+    # ── Health Check ─────────────────────────────────
+    - match:
+        - uri:
+            exact: /health
+      route:
+        - destination:
+            host: api-gateway-service.agent-os.svc.cluster.local
+            port:
+              number: 8000
+      timeout: 5s
+
+    # ── Metrics (no auth required) ───────────────────
+    - match:
+        - uri:
+            exact: /metrics
+      route:
+        - destination:
+            host: api-gateway-service.agent-os.svc.cluster.local
+            port:
+              number: 9090
+      timeout: 5s
+
+    # ── Swagger Docs ─────────────────────────────────
+    - match:
+        - uri:
+            prefix: /docs
+      route:
+        - destination:
+            host: api-gateway-service.agent-os.svc.cluster.local
+            port:
+              number: 8000
+      timeout: 10s
+
+    # ── Canary Example (90% stable / 10% canary) ────
+    # - match:
+    #     - headers:
+    #         canary:
+    #           exact: "true"
+    #   route:
+    #     - destination:
+    #         host: api-gateway-service.agent-os.svc.cluster.local
+    #         subset: canary
+    #         port:
+    #           number: 8000
+    # - route:
+    #     - destination:
+    #         host: api-gateway-service.agent-os.svc.cluster.local
+    #         subset: stable
+    #         port:
+    #           number: 8000
+    #       weight: 90
+    #     - destination:
+    #         host: api-gateway-service.agent-os.svc.cluster.local
+    #         subset: canary
+    #         port:
+    #           number: 8000
+    #       weight: 10

@@ -1,0 +1,31 @@
+# ============================================================
+# Agent OS V6.0 - Service
+# ============================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway-service
+  namespace: agent-os
+  labels:
+    app.kubernetes.io/name: agent-os
+    app.kubernetes.io/component: api-gateway
+    app.kubernetes.io/version: "6.0.0"
+spec:
+  type: ClusterIP
+  selector:
+    app: agent-os
+    component: api-gateway
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+      protocol: TCP
+    - name: metrics
+      port: 9090
+      targetPort: metrics
+      protocol: TCP
+    - name: grpc
+      port: 50051
+      targetPort: grpc
+      protocol: TCP
+  sessionAffinity: None

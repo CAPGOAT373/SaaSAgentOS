@@ -1,0 +1,324 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: agent-os
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agent-os-config
+  namespace: agent-os
+data:
+  AGENT_OS_REGION: "us-east-1"
+  DEPLOYMENT_MODE: "production"
+  DB_HOST: "postgres-service"
+  DB_PORT: "5432"
+  DB_USER: "agentos"
+  DB_NAME: "agent_os"
+  REDIS_HOST: "redis-service"
+  REDIS_PORT: "6379"
+  KAFKA_BOOTSTRAP_SERVERS: "redpanda-service:9092"
+  LOG_LEVEL: "INFO"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: agent-os-secrets
+  namespace: agent-os
+type: Opaque
+stringData:
+  DB_PASSWORD: "agentos"
+  REDIS_PASSWORD: ""
+  JWT_SECRET: "change-me-in-production"
+  LLM_API_KEY: ""
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: agent-os
+  labels:
+    app: agent-os
+    component: api-gateway
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: agent-os
+      component: api-gateway
+  template:
+    metadata:
+      labels:
+        app: agent-os
+        component: api-gateway
+    spec:
+      containers:
+      - name: api-gateway
+        image: agent-os:6.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+          name: http
+        - containerPort: 9090
+          name: metrics
+        envFrom:
+        - configMapRef:
+            name: agent-os-config
+        - secretRef:
+            name: agent-os-secrets
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway-service
+  namespace: agent-os
+  labels:
+    app: agent-os
+spec:
+  type: ClusterIP
+  selector:
+    app: agent-os
+    component: api-gateway
+  ports:
+  - port: 8000
+    targetPort: 8000
+    name: http
+  - port: 9090
+    targetPort: 9090
+    name: metrics
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: agent-os
+  labels:
+    app: agent-os
+    component: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: agent-os
+      component: postgres
+  template:
+    metadata:
+      labels:
+        app: agent-os
+        component: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:16-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_USER
+          valueFrom:
+            configMapKeyRef:
+              name: agent-os-config
+              key: DB_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: agent-os-secrets
+              key: DB_PASSWORD
+        - name: POSTGRES_DB
+          valueFrom:
+            configMapKeyRef:
+              name: agent-os-config
+              key: DB_NAME
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: postgres-data
+        persistentVolumeClaim:
+          claimName: postgres-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+  namespace: agent-os
+spec:
+  type: ClusterIP
+  selector:
+    app: agent-os
+    component: postgres
+  ports:
+  - port: 5432
+    targetPort: 5432
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: agent-os
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: agent-os
+  labels:
+    app: agent-os
+    component: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: agent-os
+      component: redis
+  template:
+    metadata:
+      labels:
+        app: agent-os
+        component: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+        command: ["redis-server", "--appendonly", "yes"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+  namespace: agent-os
+spec:
+  type: ClusterIP
+  selector:
+    app: agent-os
+    component: redis
+  ports:
+  - port: 6379
+    targetPort: 6379
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redpanda
+  namespace: agent-os
+  labels:
+    app: agent-os
+    component: redpanda
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: agent-os
+      component: redpanda
+  template:
+    metadata:
+      labels:
+        app: agent-os
+        component: redpanda
+    spec:
+      containers:
+      - name: redpanda
+        image: docker.redpanda.com/redpandadata/redpanda:v24.2.8
+        ports:
+        - containerPort: 9092
+        - containerPort: 9644
+        command:
+        - redpanda
+        - start
+        - --smp
+        - "1"
+        - --overprovisioned
+        - --kafka-addr
+        - internal://0.0.0.0:9092
+        - --advertise-kafka-addr
+        - internal://redpanda-service:9092
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redpanda-service
+  namespace: agent-os
+spec:
+  type: ClusterIP
+  selector:
+    app: agent-os
+    component: redpanda
+  ports:
+  - port: 9092
+    targetPort: 9092
+    name: kafka
+  - port: 9644
+    targetPort: 9644
+    name: admin
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: agent-os-ingress
+  namespace: agent-os
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - host: api.agent-os.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: api-gateway-service
+            port:
+              number: 8000
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: api-gateway-hpa
+  namespace: agent-os
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api-gateway
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
