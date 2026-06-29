@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import AuthGuard from "@/components/auth/AuthGuard";
 import AppLayout from "@/components/layout/AppLayout";
-import { api } from "@/api";
-import type { Agent } from "@/api";
+import { getMockAgentDetail, delay } from "@/services/mock/data";
+
 import {
   ArrowLeft,
   Bot,
@@ -41,7 +41,8 @@ function AgentDetail() {
       setLoading(true);
       setError("");
       try {
-        const data = await api.getAgent(id);
+        await delay();
+        const data = getMockAgentDetail(id);
         if (!cancelled) setAgent(data);
       } catch (err: any) {
         if (!cancelled) setError(err?.message ?? "Failed to load agent details.");

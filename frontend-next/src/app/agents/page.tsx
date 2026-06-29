@@ -5,8 +5,8 @@ import Link from "next/link";
 import AuthGuard from "@/components/auth/AuthGuard";
 import AppLayout from "@/components/layout/AppLayout";
 import { useAuth } from "@/lib/auth";
-import { api } from "@/api";
-import type { Agent } from "@/api";
+import { mockAgents, delay } from "@/services/mock/data";
+
 import { Bot, Clock, ArrowRight } from "lucide-react";
 
 export default function AgentsPage() {
@@ -29,7 +29,8 @@ function AgentsContent() {
     setLoading(true);
     setError("");
     try {
-      const data = await api.listAgents({ tenantId: user?.tenant_id ?? "", limit: 50 });
+      await delay();
+      const data = mockAgents;
       setAgents(data);
     } catch (err: any) {
       setError(err?.message ?? "Failed to load agents.");

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import AuthGuard from "@/components/auth/AuthGuard";
 import AppLayout from "@/components/layout/AppLayout";
-import { useAuth } from "@/lib/auth";
+import { mockModels, delay, runMockModelTest } from "@/services/mock/data";
 import { Cpu, CheckCircle, XCircle, Loader2, Globe, Key } from "lucide-react";
 
 interface ModelRecord {
@@ -21,13 +21,8 @@ interface TestResult {
   latency_ms?: number;
 }
 
-const API = "/api/v1/models";
 
-function authHeaders(token: string | null): Record<string, string> {
-  const h: Record<string, string> = { "Content-Type": "application/json" };
-  if (token) h["Authorization"] = `Bearer ${token}`;
-  return h;
-}
+
 
 export default function ModelsPage() {
   return (
@@ -40,7 +35,6 @@ export default function ModelsPage() {
 }
 
 function ModelsContent() {
-  const { token } = useAuth();
   const [models, setModels] = useState<ModelRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -51,29 +45,23 @@ function ModelsContent() {
     setLoading(true);
     setError("");
     try {
-      const resp = await fetch(API, { headers: authHeaders(token) });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      setModels(await resp.json());
+      await delay();
+      setModels([...mockModels]);
     } catch (err: any) {
       setError(err.message ?? "Failed to load models.");
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, []);
 
-  useEffect(() => { fetchModels(); }, [fetchModels]);
+  useEffect(() => { fetchModels(); }, []);
 
   async function handleTest(modelId: string) {
     setTesting((p) => ({ ...p, [modelId]: true }));
     setResults((p) => { const n = { ...p }; delete n[modelId]; return n; });
     try {
-      const resp = await fetch(`${API}/${modelId}/test`, { method: "POST", headers: authHeaders(token) });
-      if (!resp.ok) {
-        let detail = "";
-        try { const errBody = await resp.json(); detail = errBody?.error?.message ?? errBody?.detail ?? ""; } catch {}
-        throw new Error(detail || `Request failed (HTTP ${resp.status})`);
-      }
-      const data: TestResult = await resp.json();
+      await delay();
+      const data = runMockModelTest(modelId);
       setResults((p) => ({ ...p, [modelId]: data }));
     } catch (err: any) {
       setResults((p) => ({ ...p, [modelId]: { success: false, message: err.message ?? "Test failed" } }));

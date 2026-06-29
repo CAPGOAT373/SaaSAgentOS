@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import AuthGuard from "@/components/auth/AuthGuard";
 import AppLayout from "@/components/layout/AppLayout";
-import { useAuth } from "@/lib/auth";
+import { getMockTaskDetail, delay } from "@/services/mock/data";
 import { ArrowLeft, ListTodo, Clock, CheckCircle, XCircle, Loader2, Circle, FileText } from "lucide-react";
 
 interface TaskDetail {
@@ -16,13 +16,8 @@ interface TaskDetail {
   logs?: string[];
 }
 
-const API = "/api/v1/tasks";
 
-function authHeaders(token: string | null): Record<string, string> {
-  const h: Record<string, string> = { "Content-Type": "application/json" };
-  if (token) h["Authorization"] = `Bearer ${token}`;
-  return h;
-}
+
 
 export default function TaskDetailPage() {
   return (
@@ -37,7 +32,6 @@ export default function TaskDetailPage() {
 function TaskDetailContent() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { token } = useAuth();
   const [task, setTask] = useState<TaskDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -48,9 +42,8 @@ function TaskDetailContent() {
     (async () => {
       setLoading(true); setError("");
       try {
-        const resp = await fetch(`${API}/${id}`, { headers: authHeaders(token) });
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const data = await resp.json();
+        await delay();
+        const data = getMockTaskDetail(id);
         if (!cancelled) setTask(data);
       } catch (err: any) {
         if (!cancelled) setError(err.message ?? "Failed to load task.");
@@ -59,7 +52,7 @@ function TaskDetailContent() {
       }
     })();
     return () => { cancelled = true; };
-  }, [id, token]);
+  }, [id]);
 
   const statusIcon = (s: string) => {
     if (s === "completed") return <CheckCircle size={16} />;

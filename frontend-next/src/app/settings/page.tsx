@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import AuthGuard from "@/components/auth/AuthGuard";
 import AppLayout from "@/components/layout/AppLayout";
-import { useAuth } from "@/lib/auth";
+import { mockSettings, delay } from "@/services/mock/data";
 import { Settings, Save, CheckCircle, XCircle } from "lucide-react";
 
 interface SystemSettings {
@@ -13,15 +13,9 @@ interface SystemSettings {
   log_level: string;
 }
 
-const API = "/api/v1/settings";
 const TIMEZONES = ["UTC", "US/Eastern", "US/Pacific", "Europe/London", "Europe/Berlin", "Asia/Shanghai", "Asia/Tokyo"];
 const LOG_LEVELS = ["DEBUG", "INFO", "WARN", "ERROR"];
 
-function authHeaders(token: string | null): Record<string, string> {
-  const h: Record<string, string> = { "Content-Type": "application/json" };
-  if (token) h["Authorization"] = `Bearer ${token}`;
-  return h;
-}
 
 export default function SettingsPage() {
   return (
@@ -34,7 +28,6 @@ export default function SettingsPage() {
 }
 
 function SettingsContent() {
-  const { token } = useAuth();
   const [settings, setSettings] = useState<SystemSettings>({
     system_name: "", default_model: "", timezone: "UTC", log_level: "INFO",
   });
@@ -43,14 +36,14 @@ function SettingsContent() {
   const [error, setError] = useState("");
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
+  // Load mock settings on mount
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true); setError("");
       try {
-        const resp = await fetch(API, { headers: authHeaders(token) });
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const data = await resp.json();
+        await delay();
+        const data = { ...mockSettings };
         if (!cancelled) setSettings(data);
       } catch (err: any) {
         if (!cancelled) setError(err.message ?? "Failed to load settings.");
@@ -59,23 +52,16 @@ function SettingsContent() {
       }
     })();
     return () => { cancelled = true; };
-  }, [token]);
+  }, []); // token removed — mock data has no auth
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     setToast(null);
     try {
-      const resp = await fetch(API, {
-        method: "PUT",
-        headers: authHeaders(token),
-        body: JSON.stringify(settings),
-      });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const data = await resp.json();
-      if (data.success) {
-        setToast({ type: "success", message: "Settings saved successfully." });
-      }
+      await delay();
+      Object.assign(mockSettings, settings);
+      setToast({ type: "success", message: "Settings saved successfully." });
     } catch (err: any) {
       setToast({ type: "error", message: err.message ?? "Failed to save settings." });
     } finally {

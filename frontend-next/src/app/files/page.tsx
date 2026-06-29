@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import AuthGuard from "@/components/auth/AuthGuard";
 import AppLayout from "@/components/layout/AppLayout";
-import { useAuth } from "@/lib/auth";
+import { mockFiles, delay } from "@/services/mock/data";
 import {
   FolderOpen,
   File,
@@ -20,13 +20,8 @@ interface FileRecord {
   uploaded_at: string;
 }
 
-const API = "/api/v1/files";
 
-function authHeaders(token: string | null): Record<string, string> {
-  const h: Record<string, string> = { "Content-Type": "application/json" };
-  if (token) h["Authorization"] = `Bearer ${token}`;
-  return h;
-}
+
 
 function fmtSize(bytes: number): string {
   if (bytes === 0) return "0 B";
@@ -47,7 +42,6 @@ export default function FilesPage() {
 }
 
 function FilesContent() {
-  const { token } = useAuth();
   const [files, setFiles] = useState<FileRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -61,26 +55,24 @@ function FilesContent() {
     setLoading(true);
     setError("");
     try {
-      const resp = await fetch(API, { headers: authHeaders(token) });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      setFiles(await resp.json());
+      await delay();
+      setFiles([...mockFiles]);
     } catch (err: any) {
       setError(err.message ?? "Failed to load files.");
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, []);
 
-  useEffect(() => { fetchFiles(); }, [fetchFiles]);
+  useEffect(() => { fetchFiles(); }, []);
 
   async function handleUpload(e: React.FormEvent) {
     e.preventDefault();
     if (!filename.trim()) return;
     setUploading(true);
     try {
-      const params = new URLSearchParams({ filename: filename.trim(), size: String(fileSize) });
-      const resp = await fetch(`${API}/upload?${params}`, { method: "POST", headers: authHeaders(token) });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const newFile = { id: `f-${Date.now()}`, filename: filename.trim(), size: fileSize, uploaded_at: new Date().toISOString() };
+      mockFiles.unshift(newFile);
       setFilename("");
       setFileSize(0);
       await fetchFiles();
@@ -93,8 +85,8 @@ function FilesContent() {
 
   async function handleDelete(id: string) {
     try {
-      const resp = await fetch(`${API}/${id}`, { method: "DELETE", headers: authHeaders(token) });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const idx = mockFiles.findIndex(f => f.id === id);
+      if (idx !== -1) mockFiles.splice(idx, 1);
       await fetchFiles();
     } catch (err: any) {
       setError(err.message ?? "Delete failed.");

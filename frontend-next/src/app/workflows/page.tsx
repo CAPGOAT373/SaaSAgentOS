@@ -5,8 +5,8 @@ import Link from "next/link";
 import AuthGuard from "@/components/auth/AuthGuard";
 import AppLayout from "@/components/layout/AppLayout";
 import { useAuth } from "@/lib/auth";
-import { api } from "@/api";
-import type { Workflow } from "@/api";
+import { mockWorkflows, delay } from "@/services/mock/data";
+
 import { GitBranch, Plus, Clock, ArrowRight } from "lucide-react";
 
 export default function WorkflowsPage() {
@@ -29,7 +29,8 @@ function WorkflowsContent() {
     setLoading(true);
     setError("");
     try {
-      const data = await api.listWorkflows(user?.tenant_id ?? "");
+      await delay();
+      const data = mockWorkflows;
       setWorkflows(data);
     } catch (err: any) {
       setError(err?.message ?? "Failed to load workflows.");

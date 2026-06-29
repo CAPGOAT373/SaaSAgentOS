@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import AuthGuard from "@/components/auth/AuthGuard";
 import AppLayout from "@/components/layout/AppLayout";
-import { api } from "@/api";
-import type { Workflow } from "@/api";
+import { getMockWorkflowDetail, delay } from "@/services/mock/data";
+
 import {
   ArrowLeft,
   GitBranch,
@@ -41,7 +41,8 @@ function WorkflowDetail() {
       setLoading(true);
       setError("");
       try {
-        const data = await api.getWorkflow(id);
+        await delay();
+        const data = getMockWorkflowDetail(id);
         if (!cancelled) setWorkflow(data);
       } catch (err: any) {
         if (!cancelled) setError(err?.message ?? "Failed to load workflow details.");

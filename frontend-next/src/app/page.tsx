@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import AuthGuard from "@/components/auth/AuthGuard";
 import AppLayout from "@/components/layout/AppLayout";
 import { useAuth } from "@/lib/auth";
-import { api } from "@/api";
-import type { HealthResponse, AdminHealthAllResponse } from "@/api";
+import { mockHealth, mockAdminHealth, delay } from "@/services/mock/data";
+// Mock data replaces real API: health + admin health
 import {
   Activity,
   Server,
@@ -50,12 +50,13 @@ function DashboardContent() {
       let ah: AdminHealthAllResponse | null = null;
 
       try {
-        h = await api.getHealth();
+        await delay();
+        h = mockHealth;
       } catch (e) {
         errs.push("System health endpoint unreachable");
       }
       try {
-        ah = await api.getAdminHealth();
+        ah = mockAdminHealth;
       } catch (e) {
         errs.push("Admin health details unavailable");
       }
