@@ -10,7 +10,9 @@
  *    schema.ts and the response models in types.ts
  *
  * It coexists with the legacy untyped services/api.ts; new code should import
- * from here. The legacy client can be migrated page-by-page.
+ * from here. Retained for backward compatibility only.
+ *
+ * @deprecated Use axiosInstance from ./axios-client instead.
  */
 
 import type {

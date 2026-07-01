@@ -3,7 +3,7 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Bot } from "lucide-react";
-import { api } from "@/api";
+import { axiosInstance } from "@/api";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/components/layout/ThemeProvider";
 import { Sun, Moon } from "lucide-react";
@@ -47,23 +47,23 @@ export default function LoginPage() {
 
     setSubmitting(true);
     try {
-      const res = await api.login({
+      const res = await axiosInstance.post("/auth/login", {
         tenant_id: tenantId.trim(),
         email: email.trim(),
         password,
       });
 
       // res is typed as AuthLoginResponse from the curated types
-      if (!res?.access_token) {
+      if (!res.data?.access_token) {
         setError("Login failed: no token returned.");
         return;
       }
 
-      login(res.access_token, {
-        user_id: res.user?.user_id ?? "",
-        tenant_id: res.user?.tenant_id ?? "",
-        username: res.user?.username ?? email,
-        roles: res.user?.roles ?? [],
+      login(res.data.access_token, {
+        user_id: res.data.user?.user_id ?? "",
+        tenant_id: res.data.user?.tenant_id ?? "",
+        username: res.data.user?.username ?? email,
+        roles: res.data.user?.roles ?? [],
       });
 
       router.replace("/");

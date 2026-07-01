@@ -14,5 +14,9 @@
 export { AgentOSClient, ApiError, api } from "./client";
 export type { AuthStore, ClientConfig } from "./client";
 
+export { axiosInstance } from "./axios-client";
+export { default as axiosApi } from "./axios-client";
+export type { ApiResponse } from "./axios-client";
+
 export type * from "./schema";
 export type * from "./types";

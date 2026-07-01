@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import AuthGuard from "@/components/auth/AuthGuard";
 import AppLayout from "@/components/layout/AppLayout";
-import { getMockTaskDetail, delay } from "@/services/mock/data";
+import { axiosInstance } from "@/api";
 import { ArrowLeft, ListTodo, Clock, CheckCircle, XCircle, Loader2, Circle, FileText } from "lucide-react";
 
 interface TaskDetail {
@@ -42,9 +42,8 @@ function TaskDetailContent() {
     (async () => {
       setLoading(true); setError("");
       try {
-        await delay();
-        const data = getMockTaskDetail(id);
-        if (!cancelled) setTask(data);
+        const res = await axiosInstance.get(`/tasks/${id}`);
+        if (!cancelled) setTask(res.data);
       } catch (err: any) {
         if (!cancelled) setError(err.message ?? "Failed to load task.");
       } finally {

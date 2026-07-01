@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import AuthGuard from "@/components/auth/AuthGuard";
 import AppLayout from "@/components/layout/AppLayout";
-import { mockTasks, delay } from "@/services/mock/data";
+import { axiosInstance } from "@/api";
 import { ListTodo, Clock, ArrowRight, CheckCircle, XCircle, Loader2, Circle } from "lucide-react";
 
 interface TaskRecord { id: string; name: string; status: string; created_at: string; duration: number; }
@@ -23,8 +23,8 @@ function TasksContent() {
     (async () => {
       setLoading(true); setError("");
       try {
-        await delay();
-        if (!cancelled) setTasks(mockTasks);
+        const res = await axiosInstance.get("/tasks");
+        if (!cancelled) setTasks(res.data);
       } catch (err: any) {
         if (!cancelled) setError(err.message ?? "Failed to load tasks.");
       } finally {
